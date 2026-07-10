@@ -59,8 +59,6 @@
     return {
       product_type_id: ptId,
       name: $("#pn-name").val().trim(),
-      code: $("#pn-code").val(),
-      barcode: $("#pn-barcode").val(),
       pack_label: $("#pn-pack-label").val(),
       units_per_strip: $("#pn-units").val(),
       description: $("#pn-desc").val(),
@@ -73,8 +71,6 @@
   function fillForm(p) {
     setProductTypeUi(p.product_type_id, p.product_type_label ? String(p.product_type_label) : "");
     $("#pn-name").val(p.name || "");
-    $("#pn-code").val(p.code || "");
-    $("#pn-barcode").val(p.barcode || "");
     $("#pn-pack-label").val(p.pack_label || "");
     $("#pn-units").val(p.units_per_strip != null ? p.units_per_strip : "");
     $("#pn-desc").val(p.description || "");

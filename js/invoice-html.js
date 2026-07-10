@@ -44,6 +44,14 @@
     return escHtml(p[2] + "/" + p[1] + "/" + p[0]);
   }
 
+  function formatExpiryForInvoice(iso) {
+    if (!iso) return "—";
+    var s = String(iso).slice(0, 10);
+    var p = s.split("-");
+    if (p.length === 3) return escHtml(p[1] + "/" + p[0].slice(2));
+    return escHtml(s);
+  }
+
   function formatEntityInvoiceBlock(ent, fmt) {
     if (!ent) return "<strong>—</strong>";
     var f =
@@ -57,7 +65,7 @@
     var cityLine = [ent.city, ent.state, ent.pincode].filter(Boolean).join(", ");
     if (cityLine) addr.push(cityLine);
     if (addr.length) lines.push(addr.map(escHtml).join("<br>"));
-    if (f.showShopPhone && ent.phone) lines.push("Phone: " + escHtml(ent.phone));
+    if (f.showShopPhone) lines.push("Phone: " + escHtml("9450359269"));
     if (f.showShopGstin && ent.gstin) lines.push("GSTIN: " + escHtml(ent.gstin));
     if (f.showShopDl && ent.dl_number) lines.push("DL no.: " + escHtml(ent.dl_number));
     return lines.join("<br>");
@@ -379,11 +387,7 @@
   }
 
   function formatGstShopPhones(ent) {
-    if (!ent) return "";
-    var parts = [];
-    if (ent.phone && String(ent.phone).trim()) parts.push(String(ent.phone).trim());
-    if (ent.alternate_phone && String(ent.alternate_phone).trim()) parts.push(String(ent.alternate_phone).trim());
-    return parts.length ? "Phone : " + parts.map(escHtml).join(", ") : "";
+    return "Phone : " + escHtml("9450359269");
   }
 
   function paiseToRupeesFixed(paise) {
@@ -571,10 +575,10 @@
       ? '<p class="inv-gst-addr">' + addrLines.join("<br>") + "</p>"
       : '<p class="inv-gst-addr">' + escHtml(rng.pick(GST_SAMPLE_SHOP_ADDR)) + "</p>";
 
-    var phoneRaw = fmt.showShopPhone !== false && ent ? formatGstShopPhones(ent) : "";
+    var phoneRaw = fmt.showShopPhone !== false ? formatGstShopPhones(ent) : "";
     var phoneLine = "";
     if (fmt.showShopPhone !== false) {
-      phoneLine = phoneRaw ? phoneRaw : "Phone : " + escHtml(rng.pick(GST_SAMPLE_PHONES));
+      phoneLine = phoneRaw ? phoneRaw : "Phone : " + escHtml("9450359269");
     }
 
     var dlVal =
@@ -584,9 +588,9 @@
     var dlLine = fmt.showShopDl !== false ? '<div class="inv-gst-idline">DL NO: ' + escHtml(dlVal) + "</div>" : "";
 
     var gstinVal =
-      fmt.showShopGstin !== false && ent && ent.gstin && String(ent.gstin).trim()
-        ? String(ent.gstin).trim()
-        : "09" + rng.digits(11) + "Z" + rng.nextInt(0, 9);
+      fmt.showShopGstin !== false && o && o.invoice_gstin && String(o.invoice_gstin).trim()
+        ? String(o.invoice_gstin).trim()
+        : "--";
     var gstinLine =
       fmt.showShopGstin !== false
         ? '<div class="inv-gst-idline">GSTIN : ' + escHtml(gstinVal) + "</div>"
@@ -595,9 +599,9 @@
     var fssaiLine = "";
     if (fmt.showShopGstin !== false) {
       var fssaiVal =
-        ent && ent.fssai != null && String(ent.fssai).trim()
-          ? String(ent.fssai).trim()
-          : rng.digits(14);
+        o && o.invoice_fssai != null && String(o.invoice_fssai).trim()
+          ? String(o.invoice_fssai).trim()
+          : "--";
       fssaiLine = '<div class="inv-gst-idline">FSSAI NO: ' + escHtml(fssaiVal) + "</div>";
     }
 
@@ -614,9 +618,9 @@
       patientAddr = escHtml(rng.pick(GST_SAMPLE_ADDRESSES));
     }
     var patientPhone =
-      cust && cust.phone && String(cust.phone).trim()
-        ? escHtml(cust.phone)
-        : escHtml("9" + rng.digits(9));
+      o && o.patient_mobile && String(o.patient_mobile).trim()
+        ? escHtml(o.patient_mobile)
+        : escHtml("--");
     var doctorName = escHtml(resolveGstDoctorDisplayName(o, printOpts));
 
     var billTime =
@@ -708,10 +712,15 @@
             ? escHtml(String(ln.pack_label).trim())
             : escHtml(packSamples[idx % packSamples.length]);
         var batch =
-          fmt.showProductCode !== false && ln.product_code && String(ln.product_code).trim()
-            ? escHtml(String(ln.product_code).trim().replace(/\s/g, ""))
+          ln.batch_number && String(ln.batch_number).trim()
+            ? escHtml(String(ln.batch_number).trim())
+            : fmt.showProductCode !== false && ln.product_code && String(ln.product_code).trim()
+              ? escHtml(String(ln.product_code).trim().replace(/\s/g, ""))
             : "—";
-        var exp = expSamples[idx % expSamples.length];
+        var exp =
+          ln.expiry_date && String(ln.expiry_date).trim()
+            ? formatExpiryForInvoice(ln.expiry_date)
+            : escHtml(expSamples[idx % expSamples.length]);
         var linePaise = Number(ln.total_price_paise) || 0;
         var qtySafe = qty > 0 ? qty : 1;
         var unitRupees = linePaise / qtySafe / 100;
@@ -745,7 +754,7 @@
           "</td>" +
           '<td class="c">' + batch + "</td>" +
           '<td class="c">' +
-          escHtml(exp) +
+          exp +
           "</td>" +
           '<td class="r">' +
           mrpStr +

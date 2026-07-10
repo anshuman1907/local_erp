@@ -199,6 +199,8 @@
         "  quantity INTEGER NOT NULL CHECK (quantity > 0),",
         "  strips_per_pack INTEGER NOT NULL DEFAULT 1 CHECK (strips_per_pack >= 1),",
         "  available_count INTEGER NOT NULL CHECK (available_count >= 0 AND available_count <= quantity),",
+        "  batch_number TEXT,",
+        "  expiry_date TEXT,",
         "  delivered_on TEXT,",
         "  selling_price_paise INTEGER NOT NULL,",
         "  strip_mrp_paise INTEGER,",
@@ -247,6 +249,9 @@
         "  order_header_discount_flat_paise INTEGER NOT NULL DEFAULT 0 CHECK (order_header_discount_flat_paise >= 0),",
         "  order_header_discount_percent INTEGER,",
         "  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'confirmed', 'cancelled')),",
+        "  patient_mobile TEXT,",
+        "  invoice_gstin TEXT,",
+        "  invoice_fssai TEXT,",
         "  notes TEXT,",
         "  created_at TEXT NOT NULL,",
         "  updated_at TEXT NOT NULL",
@@ -257,6 +262,8 @@
         "  order_id INTEGER NOT NULL REFERENCES shop_order (id) ON DELETE CASCADE,",
         "  product_id INTEGER NOT NULL REFERENCES product (id) ON DELETE RESTRICT,",
         "  quantity INTEGER NOT NULL CHECK (quantity > 0),",
+        "  batch_number TEXT,",
+        "  expiry_date TEXT,",
         "  total_price_paise INTEGER NOT NULL,",
         "  line_discount_paise INTEGER NOT NULL DEFAULT 0 CHECK (line_discount_paise >= 0),",
         "  line_notes TEXT,",
@@ -329,6 +336,16 @@
       /* duplicate column */
     }
     try {
+      db.run("ALTER TABLE order_line ADD COLUMN batch_number TEXT");
+    } catch (e) {
+      /* duplicate column */
+    }
+    try {
+      db.run("ALTER TABLE order_line ADD COLUMN expiry_date TEXT");
+    } catch (e) {
+      /* duplicate column */
+    }
+    try {
       db.run(
         "ALTER TABLE shop_order ADD COLUMN prescription_id INTEGER REFERENCES prescription (id) ON DELETE SET NULL"
       );
@@ -348,6 +365,21 @@
       /* duplicate column */
     }
     try {
+      db.run("ALTER TABLE shop_order ADD COLUMN patient_mobile TEXT");
+    } catch (e) {
+      /* duplicate column */
+    }
+    try {
+      db.run("ALTER TABLE shop_order ADD COLUMN invoice_gstin TEXT");
+    } catch (e) {
+      /* duplicate column */
+    }
+    try {
+      db.run("ALTER TABLE shop_order ADD COLUMN invoice_fssai TEXT");
+    } catch (e) {
+      /* duplicate column */
+    }
+    try {
       db.run(
         "UPDATE shop_order SET order_header_discount_flat_paise = order_discount_paise WHERE COALESCE(order_header_discount_percent, 0) = 0 AND COALESCE(order_header_discount_flat_paise, 0) = 0 AND COALESCE(order_discount_paise, 0) > 0"
       );
@@ -356,6 +388,16 @@
     }
     try {
       db.run("ALTER TABLE lot_line ADD COLUMN strip_mrp_paise INTEGER");
+    } catch (e) {
+      /* duplicate column */
+    }
+    try {
+      db.run("ALTER TABLE lot_line ADD COLUMN batch_number TEXT");
+    } catch (e) {
+      /* duplicate column */
+    }
+    try {
+      db.run("ALTER TABLE lot_line ADD COLUMN expiry_date TEXT");
     } catch (e) {
       /* duplicate column */
     }
@@ -1975,7 +2017,7 @@
     return execAll(
       this._db,
       [
-        "SELECT ll.id, ll.quantity, ll.strips_per_pack, ll.available_count, ll.available_tabs, ll.selling_price_paise, ll.delivered_on, ll.line_notes,",
+        "SELECT ll.id, ll.quantity, ll.strips_per_pack, ll.available_count, ll.available_tabs, ll.batch_number, ll.expiry_date, ll.selling_price_paise, ll.delivered_on, ll.line_notes,",
         "lo.id AS lot_id, lo.lot_number, lo.delivered_date, lo.lot_date, v.name AS vendor_name",
         "FROM lot_line ll",
         "INNER JOIN lot lo ON lo.id = ll.lot_id",
@@ -1985,6 +2027,30 @@
       ].join(" "),
       [Number(productId), eid]
     );
+  };
+
+  /**
+   * Current lot snapshot for order/invoice display.
+   * Prefers sellable stock first, then nearest entered lot line.
+   * @param {number} productId
+   * @returns {{ batch_number?: string|null, expiry_date?: string|null, selling_price_paise?: number|null } | null}
+   */
+  MargDb.prototype.getPreferredLotSnapshotForProduct = function (productId) {
+    var eid = this.requireEntityId();
+    if (!this.getProduct(productId)) return null;
+    var rows = execAll(
+      this._db,
+      [
+        "SELECT ll.batch_number, ll.expiry_date, ll.selling_price_paise",
+        "FROM lot_line ll",
+        "INNER JOIN lot lo ON lo.id = ll.lot_id",
+        "WHERE ll.product_id = ? AND lo.entity_id = ?",
+        "ORDER BY CASE WHEN COALESCE(ll.available_tabs, 0) > 0 THEN 0 ELSE 1 END, lo.created_at DESC, ll.id DESC",
+        "LIMIT 1",
+      ].join(" "),
+      [Number(productId), eid]
+    );
+    return rows.length ? rows[0] : null;
   };
 
   MargDb.prototype.insertProduct = function (p) {
@@ -2701,7 +2767,7 @@
     return execAll(
       this._db,
       [
-        "SELECT ll.id, ll.lot_id, ll.product_id, ll.quantity, ll.strips_per_pack, ll.available_count, ll.available_tabs, ll.delivered_on,",
+        "SELECT ll.id, ll.lot_id, ll.product_id, ll.quantity, ll.strips_per_pack, ll.available_count, ll.available_tabs, ll.batch_number, ll.expiry_date, ll.delivered_on,",
         "ll.selling_price_paise, ll.strip_mrp_paise, ll.line_notes, ll.created_at, ll.updated_at,",
         "p.name AS product_name, p.code AS product_code, p.pack_label AS pack_label",
         "FROM lot_line ll INNER JOIN product p ON p.id = ll.product_id",
@@ -2793,8 +2859,8 @@
         var avTabs = Math.round(av) * tabsPerStrip;
         self._db.run(
           [
-            "INSERT INTO lot_line (lot_id, product_id, quantity, strips_per_pack, available_count, available_tabs, delivered_on, selling_price_paise, strip_mrp_paise, line_notes, created_at, updated_at)",
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO lot_line (lot_id, product_id, quantity, strips_per_pack, available_count, available_tabs, batch_number, expiry_date, delivered_on, selling_price_paise, strip_mrp_paise, line_notes, created_at, updated_at)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
           ].join(" "),
           [
             lotId,
@@ -2803,6 +2869,8 @@
             spp,
             Math.round(av),
             avTabs,
+            line.batch_number || null,
+            line.expiry_date || null,
             line.delivered_on || null,
             sp,
             mrp,
@@ -2931,8 +2999,8 @@
         var avTabsUp = Math.round(av) * tabsPerStripUp;
         self._db.run(
           [
-            "INSERT INTO lot_line (lot_id, product_id, quantity, strips_per_pack, available_count, available_tabs, delivered_on, selling_price_paise, strip_mrp_paise, line_notes, created_at, updated_at)",
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO lot_line (lot_id, product_id, quantity, strips_per_pack, available_count, available_tabs, batch_number, expiry_date, delivered_on, selling_price_paise, strip_mrp_paise, line_notes, created_at, updated_at)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
           ].join(" "),
           [
             Number(lotId),
@@ -2941,6 +3009,8 @@
             sppUp,
             Math.round(av),
             avTabsUp,
+            line.batch_number || null,
+            line.expiry_date || null,
             line.delivered_on || null,
             sp,
             mrp,
@@ -3559,8 +3629,8 @@
       }
       this._db.run(
         [
-          "INSERT INTO shop_order (entity_id, customer_id, order_number, order_date, order_total_price_paise, order_discount_paise, order_header_discount_flat_paise, order_header_discount_percent, status, notes, prescription_id, created_at, updated_at)",
-          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+          "INSERT INTO shop_order (entity_id, customer_id, order_number, order_date, order_total_price_paise, order_discount_paise, order_header_discount_flat_paise, order_header_discount_percent, status, patient_mobile, invoice_gstin, invoice_fssai, notes, prescription_id, created_at, updated_at)",
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         ].join(" "),
         [
           eid,
@@ -3572,6 +3642,9 @@
           flatStored,
           percentStored,
           status,
+          header.patient_mobile || null,
+          header.invoice_gstin || null,
+          header.invoice_fssai || null,
           header.notes || null,
           rxId,
           t,
@@ -3582,15 +3655,22 @@
       orderId = oidRow[0].values[0][0];
       for (var j = 0; j < lines.length; j++) {
         var L = lines[j];
+        var lotSnap = this.getPreferredLotSnapshotForProduct(L.product_id);
         this._db.run(
           [
-            "INSERT INTO order_line (order_id, product_id, quantity, total_price_paise, line_discount_paise, line_notes, created_at, updated_at)",
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO order_line (order_id, product_id, quantity, batch_number, expiry_date, total_price_paise, line_discount_paise, line_notes, created_at, updated_at)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
           ].join(" "),
           [
             orderId,
             L.product_id,
             Number(L.quantity),
+            lotSnap && lotSnap.batch_number != null && String(lotSnap.batch_number).trim()
+              ? String(lotSnap.batch_number).trim()
+              : null,
+            lotSnap && lotSnap.expiry_date != null && String(lotSnap.expiry_date).trim()
+              ? String(lotSnap.expiry_date).trim()
+              : null,
             Number(L.total_price_paise) || 0,
             Math.max(0, Number(L.line_discount_paise) || 0),
             L.line_notes || null,
@@ -3696,7 +3776,7 @@
       this._db.run("BEGIN TRANSACTION");
       this._db.run("DELETE FROM order_line WHERE order_id = ?", [orderId]);
       var updateSql =
-        "UPDATE shop_order SET customer_id = ?, order_number = ?, order_date = ?, order_total_price_paise = ?, order_discount_paise = ?, order_header_discount_flat_paise = ?, order_header_discount_percent = ?, notes = ?, updated_at = ?";
+        "UPDATE shop_order SET customer_id = ?, order_number = ?, order_date = ?, order_total_price_paise = ?, order_discount_paise = ?, order_header_discount_flat_paise = ?, order_header_discount_percent = ?, patient_mobile = ?, invoice_gstin = ?, invoice_fssai = ?, notes = ?, updated_at = ?";
       var updateParams = [
         header.customer_id,
         orderNum,
@@ -3705,6 +3785,9 @@
         discount,
         flatStoredUp,
         percentStoredUp,
+        header.patient_mobile || null,
+        header.invoice_gstin || null,
+        header.invoice_fssai || null,
         header.notes || null,
         t,
       ];
@@ -3717,15 +3800,22 @@
       this._db.run(updateSql, updateParams);
       for (var j = 0; j < lines.length; j++) {
         var L = lines[j];
+        var lotSnapUp = this.getPreferredLotSnapshotForProduct(L.product_id);
         this._db.run(
           [
-            "INSERT INTO order_line (order_id, product_id, quantity, total_price_paise, line_discount_paise, line_notes, created_at, updated_at)",
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO order_line (order_id, product_id, quantity, batch_number, expiry_date, total_price_paise, line_discount_paise, line_notes, created_at, updated_at)",
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
           ].join(" "),
           [
             orderId,
             L.product_id,
             Number(L.quantity),
+            lotSnapUp && lotSnapUp.batch_number != null && String(lotSnapUp.batch_number).trim()
+              ? String(lotSnapUp.batch_number).trim()
+              : null,
+            lotSnapUp && lotSnapUp.expiry_date != null && String(lotSnapUp.expiry_date).trim()
+              ? String(lotSnapUp.expiry_date).trim()
+              : null,
             Number(L.total_price_paise) || 0,
             Math.max(0, Number(L.line_discount_paise) || 0),
             L.line_notes || null,

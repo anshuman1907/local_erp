@@ -440,12 +440,16 @@
 
   function updateLineStockDisplay($tr) {
     var $hint = $tr.find(".ol-product-stock-hint");
+    var $lotMeta = $tr.find(".ol-product-lot-meta");
     var $tabsStock = $tr.find(".ol-tabs-stock");
     var pid = $tr.find(".ol-product-id").val();
     if (!pid) {
       $tr.find(".ol-tabs").removeClass("ol-tabs--over");
       if ($hint.length) {
         $hint.text("").removeClass("ol-product-stock-hint--oos").addClass("hide").attr("aria-hidden", "true");
+      }
+      if ($lotMeta.length) {
+        $lotMeta.text("").addClass("hide").attr("aria-hidden", "true");
       }
       if ($tabsStock.length) {
         $tabsStock
@@ -488,6 +492,23 @@
     }
     if ($tabsStock.length) {
       setTabsStockCell($tr, $tabsStock, p, lab, oos);
+    }
+    if ($lotMeta.length) {
+      var batchStored = ($tr.attr("data-batch-number") || "").trim();
+      var expStored = ($tr.attr("data-expiry-date") || "").trim();
+      var snap = (!batchStored && !expStored) && db.getPreferredLotSnapshotForProduct
+        ? db.getPreferredLotSnapshotForProduct(id)
+        : null;
+      var batchVal = batchStored || (snap && snap.batch_number ? String(snap.batch_number).trim() : "");
+      var expVal = expStored || (snap && snap.expiry_date ? String(snap.expiry_date).trim() : "");
+      if (batchVal || expVal) {
+        var lotBits = [];
+        if (batchVal) lotBits.push("Batch: " + batchVal);
+        if (expVal) lotBits.push("Expiry: " + expVal);
+        $lotMeta.text(lotBits.join("  |  ")).removeClass("hide").attr("aria-hidden", "false");
+      } else {
+        $lotMeta.text("Batch: —  |  Expiry: —").removeClass("hide").attr("aria-hidden", "false");
+      }
     }
   }
 
@@ -547,7 +568,11 @@
     }
     var p = findProductInCache(pid) || db.getProduct(Number(pid));
     var ups = p && Number(p.units_per_strip) > 0 ? Number(p.units_per_strip) : 10;
-    var stripPaise = db.getLatestStripSellingPricePaise(Number(pid));
+    var snap = db.getPreferredLotSnapshotForProduct ? db.getPreferredLotSnapshotForProduct(Number(pid)) : null;
+    var stripPaise =
+      snap && snap.selling_price_paise != null
+        ? Number(snap.selling_price_paise) || 0
+        : db.getLatestStripSellingPricePaise(Number(pid));
     var gross = Math.round((tabs / ups) * stripPaise);
     var net = Math.max(0, gross - lineDisc);
     $total.val(paiseToRupees(net).toFixed(2));
@@ -589,11 +614,17 @@
       .addClass("ol-product-stock-hint grey-text text-darken-1 hide")
       .attr("aria-live", "polite")
       .attr("aria-hidden", "true");
-    var $wrap = $("<div></div>").addClass("ol-product-wrap").append($search, $hid, $dd, $stockHint);
+    var $lotMetaHint = $("<div></div>")
+      .addClass("ol-product-lot-meta grey-text text-darken-1 hide")
+      .attr("aria-live", "polite")
+      .attr("aria-hidden", "true");
+    var $wrap = $("<div></div>").addClass("ol-product-wrap").append($search, $hid, $dd, $stockHint, $lotMetaHint);
 
     var $r1 = $("<tr></tr>")
       .addClass("order-line-row")
       .attr("data-line-group", gid)
+      .attr("data-batch-number", data.batch_number ? String(data.batch_number) : "")
+      .attr("data-expiry-date", data.expiry_date ? String(data.expiry_date) : "")
       .append(
         $("<td></td>").append($wrap),
         $("<td></td>")
@@ -717,7 +748,7 @@
   function applyReadonlyUI() {
     var ro = readOnly;
     $("#panel-order-editor").toggleClass("inv-readonly", ro);
-    $("#order-customer-search, #order-customer-id, #order-date, #order-discount-flat-inr, #order-discount-pct, #order-notes").prop(
+    $("#order-customer-search, #order-customer-id, #order-date, #order-discount-flat-inr, #order-discount-pct, #order-patient-mobile, #order-invoice-gstin, #order-invoice-fssai, #order-notes").prop(
       "disabled",
       ro
     );
@@ -737,6 +768,9 @@
     setOrderNumberDisplay(null);
     $("#order-discount-flat-inr").val("");
     $("#order-discount-pct").val("");
+    $("#order-patient-mobile").val("");
+    $("#order-invoice-gstin").val("");
+    $("#order-invoice-fssai").val("");
     $("#order-notes").val("");
     clearLines();
     appendLineRow();
@@ -832,6 +866,9 @@
         customer_id: Number($("#order-customer-id").val()),
         order_date: $("#order-date").val() || todayIsoDate(),
         order_number: null,
+        patient_mobile: ($("#order-patient-mobile").val() || "").trim() || null,
+        invoice_gstin: ($("#order-invoice-gstin").val() || "").trim() || null,
+        invoice_fssai: ($("#order-invoice-fssai").val() || "").trim() || null,
         notes: $("#order-notes").val() || null,
         status: "draft",
         prescription_id: linkedPrescriptionId || null,
@@ -1026,6 +1063,9 @@
         $("#order-discount-flat-inr").val(paiseToRupees(o.order_discount_paise || 0).toFixed(2));
       }
     }
+    $("#order-patient-mobile").val(o.patient_mobile || "");
+    $("#order-invoice-gstin").val(o.invoice_gstin || "");
+    $("#order-invoice-fssai").val(o.invoice_fssai || "");
     $("#order-notes").val(o.notes || "");
     refreshCustomerSelect(o.customer_id);
     clearLines();
@@ -1119,6 +1159,9 @@
                 customer_id: Number($("#order-customer-id").val()),
                 order_date: $("#order-date").val() || todayIsoDate(),
                 order_number: null,
+                patient_mobile: ($("#order-patient-mobile").val() || "").trim() || null,
+                invoice_gstin: ($("#order-invoice-gstin").val() || "").trim() || null,
+                invoice_fssai: ($("#order-invoice-fssai").val() || "").trim() || null,
                 notes: $("#order-notes").val() || null,
                 status: "draft",
                 prescription_id: linkedPrescriptionId || null,
@@ -1236,6 +1279,7 @@
           if (readOnly) return;
           var $tr = $(this).closest("tr.order-line-row");
           $tr.find(".ol-product-id").val("");
+          $tr.attr("data-batch-number", "").attr("data-expiry-date", "");
           var $dd = $tr.find(".ol-product-dd");
           fillProductDropdown($dd, $(this).val());
           $dd.removeClass("hide");
@@ -1249,6 +1293,7 @@
           var lab = $(this).attr("data-label") || $(this).find(".ol-product-li-main").text() || "";
           var $tr = $(this).closest("tr.order-line-row");
           $tr.find(".ol-product-id").val(id || "");
+          $tr.attr("data-batch-number", "").attr("data-expiry-date", "");
           $tr.find(".ol-product-search").val(lab);
           $tr.find(".ol-product-dd").addClass("hide");
           recalcLineRow($tr);

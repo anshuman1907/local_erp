@@ -321,6 +321,23 @@
         )
     );
 
+    var $r3 = $("<div></div>").addClass("row lot-line-row-meta").append(
+      $("<div></div>")
+        .addClass("col s12 m6 lot-field-group")
+        .append(
+          $("<span></span>").addClass("lot-stacked-label").text("Batch number"),
+          $("<input>")
+            .attr({ type: "text", autocomplete: "off", placeholder: "Batch no." })
+            .addClass("browser-default lot-batch lot-stacked-input")
+        ),
+      $("<div></div>")
+        .addClass("col s12 m6 lot-field-group")
+        .append(
+          $("<span></span>").addClass("lot-stacked-label").text("Expiry date"),
+          $("<input>").attr({ type: "date" }).addClass("browser-default lot-expiry lot-stacked-input lot-stacked-input--date")
+        )
+    );
+
     var $hint = $("<p></p>")
       .addClass("lot-selling-hint grey-text text-darken-1")
       .text("Strip MRP ₹ is required and saved. Use strip selling ₹ and/or margin % off MRP for effective selling.");
@@ -334,6 +351,7 @@
       .append(
         $r1,
         $r2,
+        $r3,
         $hintBlock,
         $("<button></button>").attr("type", "button").addClass("btn-flat red-text text-lighten-1 btn-remove-line lot-line-remove").text("Remove line")
       );
@@ -528,6 +546,8 @@
               quantity: qty,
               strips_per_pack: spp,
               available_count: avail,
+              batch_number: ($r.find(".lot-batch").val() || "").trim() || null,
+              expiry_date: $r.find(".lot-expiry").val() || null,
               delivered_on: $r.find(".lot-delivered").val() || null,
               selling_price_paise: sp,
               strip_mrp_paise: Math.round(Number(mrpP)),

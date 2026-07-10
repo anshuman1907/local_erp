@@ -193,6 +193,20 @@
               </div>
             </div>
             <div class="row inv-order-form-row inv-order-form-row--notes">
+              <div class="input-field col s12 m4">
+                <input id="order-patient-mobile" type="text" />
+                <label for="order-patient-mobile">Patient Mob.No.</label>
+              </div>
+              <div class="input-field col s12 m4">
+                <input id="order-invoice-gstin" type="text" />
+                <label for="order-invoice-gstin">GSTIN</label>
+              </div>
+              <div class="input-field col s12 m4">
+                <input id="order-invoice-fssai" type="text" />
+                <label for="order-invoice-fssai">FSSAI NO</label>
+              </div>
+            </div>
+            <div class="row inv-order-form-row inv-order-form-row--notes">
               <div class="input-field col s12">
                 <textarea id="order-notes" class="materialize-textarea"></textarea>
                 <label for="order-notes">Order notes</label>
@@ -287,12 +301,12 @@
     <script src="vendor/js/sql-wasm.js"></script>
     <script src="js/terms-defaults.js"></script>
     <script src="js/invoice-format-defaults.js"></script>
-    <script src="js/invoice-html.js"></script>
-    <script src="js/db.js"></script>
+    <script src="js/invoice-html.js?v=4"></script>
+    <script src="js/db.js?v=4"></script>
     <script src="js/inventory-csv.js"></script>
     <script src="js/views/app-layout-view.js"></script>
     <script src="js/global-search.js"></script>
     <script src="js/marg-sync.js"></script>
-    <script src="js/orders-main.js?v=3"></script>
+    <script src="js/orders-main.js?v=6"></script>
   </body>
 </html>

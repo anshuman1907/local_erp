@@ -45,7 +45,7 @@
       Number(p.is_active) === 1;
     $("#pd-name").text(p.name || "—");
     $("#pd-sub").text(
-      [p.product_type_label, p.code && "Code " + p.code, p.pack_label].filter(Boolean).join(" · ") ||
+      [p.product_type_label, p.pack_label].filter(Boolean).join(" · ") ||
         "Product profile"
     );
 
@@ -93,8 +93,6 @@
     var latestPaise = db.getLatestStripSellingPricePaise(productId);
     $("#pd-kpi-price").text(latestPaise > 0 ? fmtRsPaise(latestPaise) : "—");
 
-    $("#pd-code").text(p.code && String(p.code).trim() ? p.code : "—");
-    $("#pd-barcode").text(p.barcode && String(p.barcode).trim() ? p.barcode : "—");
     $("#pd-pack").text(p.pack_label && String(p.pack_label).trim() ? p.pack_label : "—");
     var units = p.units_per_strip != null ? String(p.units_per_strip) : "—";
     $("#pd-units").text(units);

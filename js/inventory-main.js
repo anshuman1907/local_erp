@@ -106,7 +106,7 @@
     });
   }
 
-  /* Row cells: name, code, type, in stock, pack label, tabs/strip, strip/pack, status, actions — 9 + actions. */
+  /* Row cells: name, type, in stock, pack label, tabs/strip, strip/pack, status, actions. */
   function refreshProductsTable() {
     var rows = getProductFilteredRows();
     var total = rows.length;
@@ -160,7 +160,6 @@
           : "—";
       $tr.append(
         nameCell,
-        $("<td></td>").addClass("inv-mono").text(r.code || "—"),
         $("<td></td>").addClass("inv-product-type-cell").text(typeTxt),
         $stockTd,
         $("<td></td>").addClass("inv-pack-teal").text(r.pack_label || "—"),
@@ -173,7 +172,7 @@
     });
     if (!total) {
       $tb.append(
-        '<tr><td colspan="9" class="center grey-text" style="padding: 2rem">No products match. Add a product or adjust search.</td></tr>'
+        '<tr><td colspan="8" class="center grey-text" style="padding: 2rem">No products match. Add a product or adjust search.</td></tr>'
       );
     }
 

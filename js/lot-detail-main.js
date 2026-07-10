@@ -130,7 +130,7 @@
 
     var $tb = $("#ld-lines-body").empty();
     if (!lines.length) {
-      $tb.append('<tr><td colspan="10" class="center grey-text">No lines.</td></tr>');
+      $tb.append('<tr><td colspan="12" class="center grey-text">No lines.</td></tr>');
       return;
     }
     lines.forEach(function (ln) {
@@ -168,6 +168,12 @@
                 : "—"
             )
           ) +
+          "</td>" +
+          "<td>" +
+          esc(ln.batch_number || "—") +
+          "</td>" +
+          "<td>" +
+          esc(fmtDate(ln.expiry_date)) +
           "</td>" +
           "<td>" +
           esc(fmtDate(ln.delivered_on)) +
