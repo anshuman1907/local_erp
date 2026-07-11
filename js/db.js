@@ -3656,6 +3656,18 @@
       for (var j = 0; j < lines.length; j++) {
         var L = lines[j];
         var lotSnap = this.getPreferredLotSnapshotForProduct(L.product_id);
+        var lineBatchNumber =
+          L.batch_number != null && String(L.batch_number).trim()
+            ? String(L.batch_number).trim()
+            : lotSnap && lotSnap.batch_number != null && String(lotSnap.batch_number).trim()
+            ? String(lotSnap.batch_number).trim()
+            : null;
+        var lineExpiryDate =
+          L.expiry_date != null && String(L.expiry_date).trim()
+            ? String(L.expiry_date).trim()
+            : lotSnap && lotSnap.expiry_date != null && String(lotSnap.expiry_date).trim()
+            ? String(lotSnap.expiry_date).trim()
+            : null;
         this._db.run(
           [
             "INSERT INTO order_line (order_id, product_id, quantity, batch_number, expiry_date, total_price_paise, line_discount_paise, line_notes, created_at, updated_at)",
@@ -3665,12 +3677,8 @@
             orderId,
             L.product_id,
             Number(L.quantity),
-            lotSnap && lotSnap.batch_number != null && String(lotSnap.batch_number).trim()
-              ? String(lotSnap.batch_number).trim()
-              : null,
-            lotSnap && lotSnap.expiry_date != null && String(lotSnap.expiry_date).trim()
-              ? String(lotSnap.expiry_date).trim()
-              : null,
+            lineBatchNumber,
+            lineExpiryDate,
             Number(L.total_price_paise) || 0,
             Math.max(0, Number(L.line_discount_paise) || 0),
             L.line_notes || null,
@@ -3801,6 +3809,18 @@
       for (var j = 0; j < lines.length; j++) {
         var L = lines[j];
         var lotSnapUp = this.getPreferredLotSnapshotForProduct(L.product_id);
+        var lineBatchNumber =
+          L.batch_number != null && String(L.batch_number).trim()
+            ? String(L.batch_number).trim()
+            : lotSnapUp && lotSnapUp.batch_number != null && String(lotSnapUp.batch_number).trim()
+            ? String(lotSnapUp.batch_number).trim()
+            : null;
+        var lineExpiryDate =
+          L.expiry_date != null && String(L.expiry_date).trim()
+            ? String(L.expiry_date).trim()
+            : lotSnapUp && lotSnapUp.expiry_date != null && String(lotSnapUp.expiry_date).trim()
+            ? String(lotSnapUp.expiry_date).trim()
+            : null;
         this._db.run(
           [
             "INSERT INTO order_line (order_id, product_id, quantity, batch_number, expiry_date, total_price_paise, line_discount_paise, line_notes, created_at, updated_at)",
@@ -3810,12 +3830,8 @@
             orderId,
             L.product_id,
             Number(L.quantity),
-            lotSnapUp && lotSnapUp.batch_number != null && String(lotSnapUp.batch_number).trim()
-              ? String(lotSnapUp.batch_number).trim()
-              : null,
-            lotSnapUp && lotSnapUp.expiry_date != null && String(lotSnapUp.expiry_date).trim()
-              ? String(lotSnapUp.expiry_date).trim()
-              : null,
+            lineBatchNumber,
+            lineExpiryDate,
             Number(L.total_price_paise) || 0,
             Math.max(0, Number(L.line_discount_paise) || 0),
             L.line_notes || null,

@@ -501,6 +501,7 @@
         : null;
       var batchVal = batchStored || (snap && snap.batch_number ? String(snap.batch_number).trim() : "");
       var expVal = expStored || (snap && snap.expiry_date ? String(snap.expiry_date).trim() : "");
+      $tr.attr("data-batch-number", batchVal).attr("data-expiry-date", expVal);
       if (batchVal || expVal) {
         var lotBits = [];
         if (batchVal) lotBits.push("Batch: " + batchVal);
@@ -811,6 +812,8 @@
         quantity: qty,
         total_price_paise: rupeesToPaise($tr.find(".ol-line-total-inr").val()),
         line_discount_paise: rupeesToPaise($tr.find(".ol-line-disc-inr").val()),
+        batch_number: ($tr.attr("data-batch-number") || "").trim() || null,
+        expiry_date: ($tr.attr("data-expiry-date") || "").trim() || null,
         line_notes: $("#order-lines-body tr.order-line-notes-row[data-line-group='" + gid + "'] .ol-line-notes").val(),
         schedule: {
           in_morning: $sched.find(".ol-sch-m").prop("checked"),
@@ -1083,6 +1086,8 @@
           quantity: ln.quantity,
           total_price_paise: ln.total_price_paise,
           line_discount_paise: ln.line_discount_paise,
+          batch_number: ln.batch_number || null,
+          expiry_date: ln.expiry_date || null,
           line_notes: ln.line_notes,
           schedule: sch
             ? {
