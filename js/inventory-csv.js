@@ -315,6 +315,8 @@
       "strips",
       "selling_price_inr",
       "strip_mrp_inr",
+      "batch_number",
+      "expiry_date",
       "notes",
     ];
     rows.push(csvLineFromCells(header));
@@ -338,6 +340,8 @@
             String(Number(ln.quantity) || 0),
             paiseToInrExportStr(ln.selling_price_paise),
             paiseToInrExportStr(ln.strip_mrp_paise),
+            ln.batch_number || "",
+            ln.expiry_date || "",
             ln.line_notes || "",
           ])
         );
@@ -370,6 +374,8 @@
       "quantity",
       "line_total_inr",
       "line_notes",
+      "batch_number",
+      "expiry_date",
       "morning",
       "noon",
       "evening",
@@ -425,6 +431,8 @@
             String(Number(ln.quantity) || 0),
             paiseToInrExportStr(ln.total_price_paise),
             ln.line_notes || "",
+            ln.batch_number || "",
+            ln.expiry_date || "",
             sch && Number(sch.in_morning) === 1 ? "1" : "0",
             sch && Number(sch.in_noon) === 1 ? "1" : "0",
             sch && Number(sch.in_evening) === 1 ? "1" : "0",
@@ -1087,6 +1095,8 @@
             quantity: strips,
             available_count: Math.round(availRaw),
             delivered_on: parseIsoOrDmy(row.delivered_on || row.line_delivered_on) || null,
+            batch_number: (row.batch_number || row.batch || row.batch_no || "").trim() || null,
+            expiry_date: parseIsoOrDmy(row.expiry_date || row.expiry || row.exp || row.exp_date) || null,
             selling_price_paise: sp,
             strip_mrp_paise: mrpSp,
             line_notes: row.line_notes || null,
